@@ -30,11 +30,11 @@ moniker = "anonymous"
 # and verifying their commits
 fast_sync = true
 
-# Database backend: leveldb | memdb
+# Database backend: leveldb | memdb | cleveldb
 db_backend = "leveldb"
 
 # Database directory
-db_path = "data"
+db_dir = "data"
 
 # Output level for logging
 log_level = "state:info,*:error"
@@ -77,6 +77,8 @@ grpc_laddr = ""
 # If you want to accept more significant number than the default, make sure
 # you increase your OS limits.
 # 0 - unlimited.
+# Should be < {ulimit -Sn} - {MaxNumInboundPeers} - {MaxNumOutboundPeers} - {N of wal, db and other open files}
+# 1024 - 40 - 10 - 50 = 924 = ~900
 grpc_max_open_connections = 900
 
 # Activate unsafe RPC commands like /dial_seeds and /unsafe_flush_mempool
@@ -87,7 +89,9 @@ unsafe = false
 # If you want to accept more significant number than the default, make sure
 # you increase your OS limits.
 # 0 - unlimited.
-max_open_connections = 450
+# Should be < {ulimit -Sn} - {MaxNumInboundPeers} - {MaxNumOutboundPeers} - {N of wal, db and other open files}
+# 1024 - 40 - 10 - 50 = 924 = ~900
+max_open_connections = 900
 
 ##### peer to peer configuration options #####
 [p2p]
@@ -108,13 +112,17 @@ upnp = false
 addr_book_file = "addrbook.json"
 
 # Set true for strict address routability rules
+# Set false for private or local networks
 addr_book_strict = true
 
-# Time to wait before flushing messages out on the connection, in ms
-flush_throttle_timeout = 100
+# Maximum number of inbound peers
+max_num_inbound_peers = 40
 
-# Maximum number of peers to connect to
-max_num_peers = 50
+# Maximum number of outbound peers to connect to, excluding persistent peers
+max_num_outbound_peers = 10
+
+# Time to wait before flushing messages out on the connection
+flush_throttle_timeout = "100ms"
 
 # Maximum size of a message packet payload, in bytes
 max_packet_msg_payload_size = 1024
@@ -137,6 +145,13 @@ seed_mode = false
 # Comma separated list of peer IDs to keep private (will not be gossiped to other peers)
 private_peer_ids = ""
 
+# Toggle to disable guard against peers connecting from the same ip.
+allow_duplicate_ip = true
+
+# Peer connection configuration.
+handshake_timeout = "20s"
+dial_timeout = "3s"
+
 ##### mempool configuration options #####
 [mempool]
 
@@ -156,25 +171,24 @@ cache_size = 100000
 
 wal_file = "data/cs.wal/wal"
 
-# All timeouts are in milliseconds
-timeout_propose = 3000
-timeout_propose_delta = 500
-timeout_prevote = 1000
-timeout_prevote_delta = 500
-timeout_precommit = 1000
-timeout_precommit_delta = 500
-timeout_commit = 1000
+timeout_propose = "3000ms"
+timeout_propose_delta = "500ms"
+timeout_prevote = "1000ms"
+timeout_prevote_delta = "500ms"
+timeout_precommit = "1000ms"
+timeout_precommit_delta = "500ms"
+timeout_commit = "1000ms"
 
 # Make progress as soon as we have all the precommits (as if TimeoutCommit = 0)
 skip_timeout_commit = false
 
-# EmptyBlocks mode and possible interval between empty blocks in seconds
+# EmptyBlocks mode and possible interval between empty blocks
 create_empty_blocks = true
-create_empty_blocks_interval = 0
+create_empty_blocks_interval = "0s"
 
-# Reactor sleep duration parameters are in milliseconds
-peer_gossip_sleep_duration = 100
-peer_query_maj23_sleep_duration = 2000
+# Reactor sleep duration parameters
+peer_gossip_sleep_duration = "100ms"
+peer_query_maj23_sleep_duration = "2000ms"
 
 ##### transactions indexer configuration options #####
 [tx_index]
@@ -186,16 +200,21 @@ peer_query_maj23_sleep_duration = 2000
 #   2) "kv" (default) - the simplest possible indexer, backed by key-value storage (defaults to levelDB; see DBBackend).
 indexer = "kv"
 
-# Comma-separated list of tags to index (by default the only tag is tx hash)
+# Comma-separated list of tags to index (by default the only tag is "tx.hash")
 #
+# You can also index transactions by height by adding "tx.height" tag here.
+# 
 # It's recommended to index only a subset of tags due to possible memory
 # bloat. This is, of course, depends on the indexer's DB and the volume of
 # transactions.
 index_tags = ""
 
-# When set to true, tells indexer to index all tags. Note this may be not
-# desirable (see the comment above). IndexTags has a precedence over
-# IndexAllTags (i.e. when given both, IndexTags will be indexed).
+# When set to true, tells indexer to index all tags (predefined tags:
+# "tx.hash", "tx.height" and all tags from DeliverTx responses). 
+#	
+# Note this may be not desirable (see the comment above). IndexTags has a
+# precedence over IndexAllTags (i.e. when given both, IndexTags will be
+# indexed).
 index_all_tags = false
 
 ##### instrumentation configuration options #####
@@ -214,4 +233,7 @@ prometheus_listen_addr = ":26660"
 # you increase your OS limits.
 # 0 - unlimited.
 max_open_connections = 3
+
+# Instrumentation namespace
+namespace = "tendermint"
 ```

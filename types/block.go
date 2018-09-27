@@ -13,6 +13,20 @@ import (
 	cmn "github.com/tendermint/tendermint/libs/common"
 )
 
+const (
+	// MaxHeaderBytes is a maximum header size (including amino overhead).
+	MaxHeaderBytes int64 = 511
+
+	// MaxAminoOverheadForBlock - maximum amino overhead to encode a block (up to
+	// MaxBlockSizeBytes in size) not including it's parts except Data.
+	//
+	// Uvarint length of MaxBlockSizeBytes: 4 bytes
+	// 2 fields (2 embedded):               2 bytes
+	// Uvarint length of Data.Txs:          4 bytes
+	// Data.Txs field:                      1 byte
+	MaxAminoOverheadForBlock int64 = 11
+)
+
 // Block defines the atomic unit of a Tendermint blockchain.
 // TODO: add Version byte
 type Block struct {
@@ -30,7 +44,6 @@ func MakeBlock(height int64, txs []Tx, lastCommit *Commit, evidence []Evidence) 
 	block := &Block{
 		Header: Header{
 			Height: height,
-			Time:   time.Now(),
 			NumTxs: int64(len(txs)),
 		},
 		Data: Data{
@@ -191,9 +204,57 @@ func (b *Block) StringShort() string {
 
 //-----------------------------------------------------------------------------
 
+// MaxDataBytes returns the maximum size of block's data.
+//
+// XXX: Panics on negative result.
+func MaxDataBytes(maxBytes int64, valsCount, evidenceCount int) int64 {
+	maxDataBytes := maxBytes -
+		MaxAminoOverheadForBlock -
+		MaxHeaderBytes -
+		int64(valsCount)*MaxVoteBytes -
+		int64(evidenceCount)*MaxEvidenceBytes
+
+	if maxDataBytes < 0 {
+		panic(fmt.Sprintf(
+			"Negative MaxDataBytes. BlockSize.MaxBytes=%d is too small to accommodate header&lastCommit&evidence=%d",
+			maxBytes,
+			-(maxDataBytes - maxBytes),
+		))
+	}
+
+	return maxDataBytes
+
+}
+
+// MaxDataBytesUnknownEvidence returns the maximum size of block's data when
+// evidence count is unknown. MaxEvidenceBytesPerBlock will be used as the size
+// of evidence.
+//
+// XXX: Panics on negative result.
+func MaxDataBytesUnknownEvidence(maxBytes int64, valsCount int) int64 {
+	maxDataBytes := maxBytes -
+		MaxAminoOverheadForBlock -
+		MaxHeaderBytes -
+		int64(valsCount)*MaxVoteBytes -
+		MaxEvidenceBytesPerBlock(maxBytes)
+
+	if maxDataBytes < 0 {
+		panic(fmt.Sprintf(
+			"Negative MaxDataBytesUnknownEvidence. BlockSize.MaxBytes=%d is too small to accommodate header&lastCommit&evidence=%d",
+			maxBytes,
+			-(maxDataBytes - maxBytes),
+		))
+	}
+
+	return maxDataBytes
+}
+
+//-----------------------------------------------------------------------------
+
 // Header defines the structure of a Tendermint block header
 // TODO: limit header size
 // NOTE: changes to the Header should be duplicated in the abci Header
+// and in /docs/spec/blockchain/blockchain.md
 type Header struct {
 	// basic block info
 	ChainID  string    `json:"chain_id"`

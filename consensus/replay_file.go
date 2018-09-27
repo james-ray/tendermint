@@ -13,12 +13,12 @@ import (
 
 	bc "github.com/tendermint/tendermint/blockchain"
 	cfg "github.com/tendermint/tendermint/config"
-	"github.com/tendermint/tendermint/proxy"
-	sm "github.com/tendermint/tendermint/state"
-	"github.com/tendermint/tendermint/types"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/proxy"
+	sm "github.com/tendermint/tendermint/state"
+	"github.com/tendermint/tendermint/types"
 )
 
 const (
@@ -34,7 +34,7 @@ func RunReplayFile(config cfg.BaseConfig, csConfig *cfg.ConsensusConfig, console
 	consensusState := newConsensusStateForReplay(config, csConfig)
 
 	if err := consensusState.ReplayFile(csConfig.WalFile(), console); err != nil {
-		cmn.Exit(cmn.Fmt("Error during consensus replay: %v", err))
+		cmn.Exit(fmt.Sprintf("Error during consensus replay: %v", err))
 	}
 }
 
@@ -298,16 +298,21 @@ func newConsensusStateForReplay(config cfg.BaseConfig, csConfig *cfg.ConsensusCo
 
 	// Create proxyAppConn connection (consensus, mempool, query)
 	clientCreator := proxy.DefaultClientCreator(config.ProxyApp, config.ABCI, config.DBDir())
-	proxyApp := proxy.NewAppConns(clientCreator,
-		NewHandshaker(stateDB, state, blockStore, gdoc))
+	proxyApp := proxy.NewAppConns(clientCreator)
 	err = proxyApp.Start()
 	if err != nil {
-		cmn.Exit(cmn.Fmt("Error starting proxy app conns: %v", err))
+		cmn.Exit(fmt.Sprintf("Error starting proxy app conns: %v", err))
+	}
+
+	handshaker := NewHandshaker(stateDB, state, blockStore, gdoc)
+	err = handshaker.Handshake(proxyApp)
+	if err != nil {
+		cmn.Exit(fmt.Sprintf("Error on handshake: %v", err))
 	}
 
 	eventBus := types.NewEventBus()
 	if err := eventBus.Start(); err != nil {
-		cmn.Exit(cmn.Fmt("Failed to start event bus: %v", err))
+		cmn.Exit(fmt.Sprintf("Failed to start event bus: %v", err))
 	}
 
 	mempool, evpool := sm.MockMempool{}, sm.MockEvidencePool{}

@@ -14,8 +14,8 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/net/netutil"
 
-	types "github.com/tendermint/tendermint/rpc/lib/types"
 	"github.com/tendermint/tendermint/libs/log"
+	types "github.com/tendermint/tendermint/rpc/lib/types"
 )
 
 // Config is an RPC server configuration.
@@ -102,15 +102,16 @@ func StartHTTPAndTLSServer(
 		listener = netutil.LimitListener(listener, config.MaxOpenConnections)
 	}
 
-	go func() {
-		err := http.ServeTLS(
-			listener,
-			RecoverAndLogHandler(maxBytesHandler{h: handler, n: maxBodyBytes}, logger),
-			certFile,
-			keyFile,
-		)
+	err = http.ServeTLS(
+		listener,
+		RecoverAndLogHandler(maxBytesHandler{h: handler, n: maxBodyBytes}, logger),
+		certFile,
+		keyFile,
+	)
+	if err != nil {
 		logger.Error("RPC HTTPS server stopped", "err", err)
-	}()
+		return nil, err
+	}
 	return listener, nil
 }
 

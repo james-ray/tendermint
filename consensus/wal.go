@@ -11,13 +11,14 @@ import (
 	"github.com/pkg/errors"
 
 	amino "github.com/tendermint/go-amino"
-	"github.com/tendermint/tendermint/types"
 	auto "github.com/tendermint/tendermint/libs/autofile"
 	cmn "github.com/tendermint/tendermint/libs/common"
+	"github.com/tendermint/tendermint/types"
+	tmtime "github.com/tendermint/tendermint/types/time"
 )
 
 const (
-	// must be greater than params.BlockGossip.BlockPartSizeBytes + a few bytes
+	// must be greater than types.BlockPartSizeBytes + a few bytes
 	maxMsgSizeBytes = 1024 * 1024 // 1MB
 )
 
@@ -72,13 +73,13 @@ type baseWAL struct {
 	enc *WALEncoder
 }
 
-func NewWAL(walFile string) (*baseWAL, error) {
+func NewWAL(walFile string, groupOptions ...func(*auto.Group)) (*baseWAL, error) {
 	err := cmn.EnsureDir(filepath.Dir(walFile), 0700)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to ensure WAL directory is in place")
 	}
 
-	group, err := auto.OpenGroup(walFile)
+	group, err := auto.OpenGroup(walFile, groupOptions...)
 	if err != nil {
 		return nil, err
 	}
@@ -119,8 +120,8 @@ func (wal *baseWAL) Write(msg WALMessage) {
 	}
 
 	// Write the wal message
-	if err := wal.enc.Encode(&TimedWALMessage{time.Now(), msg}); err != nil {
-		panic(cmn.Fmt("Error writing msg to consensus wal: %v \n\nMessage: %v", err, msg))
+	if err := wal.enc.Encode(&TimedWALMessage{tmtime.Now(), msg}); err != nil {
+		panic(fmt.Sprintf("Error writing msg to consensus wal: %v \n\nMessage: %v", err, msg))
 	}
 }
 
@@ -134,7 +135,7 @@ func (wal *baseWAL) WriteSync(msg WALMessage) {
 
 	wal.Write(msg)
 	if err := wal.group.Flush(); err != nil {
-		panic(cmn.Fmt("Error flushing consensus wal buf to file. Error: %v \n", err))
+		panic(fmt.Sprintf("Error flushing consensus wal buf to file. Error: %v \n", err))
 	}
 }
 

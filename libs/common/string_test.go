@@ -13,6 +13,7 @@ func TestStringInSlice(t *testing.T) {
 	assert.False(t, StringInSlice("", []string{}))
 }
 
+<<<<<<< HEAD
 func TestIsHex(t *testing.T) {
 	notHex := []string{
 		"", "   ", "a", "x", "0", "0x", "0X", "0x ", "0X ", "0X a",
@@ -31,12 +32,14 @@ func TestIsHex(t *testing.T) {
 	}
 }
 
+=======
+>>>>>>> 4c4a95ca53b17dd3a73eb03669cf6013d46e1bdf
 func TestIsASCIIText(t *testing.T) {
 	notASCIIText := []string{
 		"", "\xC2", "\xC2\xA2", "\xFF", "\x80", "\xF0", "\n", "\t",
 	}
 	for _, v := range notASCIIText {
-		assert.False(t, IsHex(v), "%q is not ascii-text", v)
+		assert.False(t, IsASCIIText(v), "%q is not ascii-text", v)
 	}
 	asciiText := []string{
 		" ", ".", "x", "$", "_", "abcdefg;", "-", "0x00", "0", "123",

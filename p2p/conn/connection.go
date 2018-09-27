@@ -257,7 +257,7 @@ func (c *MConnection) Send(chID byte, msgBytes []byte) bool {
 	// Send message to channel.
 	channel, ok := c.channelsIdx[chID]
 	if !ok {
-		c.Logger.Error(cmn.Fmt("Cannot send bytes, unknown channel %X", chID))
+		c.Logger.Error(fmt.Sprintf("Cannot send bytes, unknown channel %X", chID))
 		return false
 	}
 
@@ -286,7 +286,7 @@ func (c *MConnection) TrySend(chID byte, msgBytes []byte) bool {
 	// Send message to channel.
 	channel, ok := c.channelsIdx[chID]
 	if !ok {
-		c.Logger.Error(cmn.Fmt("Cannot send bytes, unknown channel %X", chID))
+		c.Logger.Error(fmt.Sprintf("Cannot send bytes, unknown channel %X", chID))
 		return false
 	}
 
@@ -311,7 +311,7 @@ func (c *MConnection) CanSend(chID byte) bool {
 
 	channel, ok := c.channelsIdx[chID]
 	if !ok {
-		c.Logger.Error(cmn.Fmt("Unknown channel %X", chID))
+		c.Logger.Error(fmt.Sprintf("Unknown channel %X", chID))
 		return false
 	}
 	return channel.canSend()
@@ -585,9 +585,9 @@ func (c *MConnection) Status() ConnectionStatus {
 		status.Channels[i] = ChannelStatus{
 			ID:                channel.desc.ID,
 			SendQueueCapacity: cap(channel.sendQueue),
-			SendQueueSize:     int(channel.sendQueueSize), // TODO use atomic
+			SendQueueSize:     int(atomic.LoadInt32(&channel.sendQueueSize)),
 			Priority:          channel.desc.Priority,
-			RecentlySent:      channel.recentlySent,
+			RecentlySent:      atomic.LoadInt64(&channel.recentlySent),
 		}
 	}
 	return status
@@ -724,7 +724,7 @@ func (ch *Channel) nextPacketMsg() PacketMsg {
 func (ch *Channel) writePacketMsgTo(w io.Writer) (n int64, err error) {
 	var packet = ch.nextPacketMsg()
 	n, err = cdc.MarshalBinaryWriter(w, packet)
-	ch.recentlySent += n
+	atomic.AddInt64(&ch.recentlySent, n)
 	return
 }
 
@@ -756,7 +756,7 @@ func (ch *Channel) recvPacketMsg(packet PacketMsg) ([]byte, error) {
 func (ch *Channel) updateStats() {
 	// Exponential decay of stats.
 	// TODO: optimize.
-	ch.recentlySent = int64(float64(ch.recentlySent) * 0.8)
+	atomic.StoreInt64(&ch.recentlySent, int64(float64(atomic.LoadInt64(&ch.recentlySent)) * 0.8))
 }
 
 //----------------------------------------
