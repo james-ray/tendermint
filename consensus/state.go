@@ -1476,7 +1476,7 @@ func (cs *ConsensusState) defaultSetProposal(proposal *types.Proposal) error {
 	}
 
 	// Does not apply
-	if proposal.Height != cs.Height{
+	if proposal.Height != cs.Height {
 		return nil
 	}
 
@@ -1547,12 +1547,13 @@ func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2p
 		if err != nil {
 			return true, err
 		}
-		/*if cs.ProposalBlock.ProposeRound != cs.Proposal.Round { //we may don't have the proposal new, can cause nil pointer
+		if cs.Proposal != nil && cs.Proposal.Round == 0 && cs.ProposalBlock.ProposeRound != 0 {
 			cs.Logger.Error("Received block which has unmatched round with proposal , bad peer?", "height", height, "round", round, "roundInProposal", cs.Proposal.Round, "roundInBlock", cs.ProposalBlock.ProposeRound, "peer", peerID)
-			cs.ProposalBlock = nil
+			cs.Proposal = nil	//unmatched proposal and block means both are invalid
+			cs.ProposalBlock = nil		//so both reset to nil
 			cs.ProposalBlockParts = nil
 			return false, nil
-		}*/
+		}
 		// NOTE: it's possible to receive complete proposal blocks for future rounds without having the proposal
 		cs.Logger.Info("Received complete proposal block", "height", cs.ProposalBlock.Height, "hash", cs.ProposalBlock.Hash())
 
@@ -1722,7 +1723,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 						} else {
 							cs.enterPrecommit(height, vote.Round)
 						}
-					}else {
+					} else {
 						cs.enterPrecommit(height, vote.Round)
 					}
 				}
