@@ -787,6 +787,7 @@ func (cs *ConsensusState) enterNewRound(height int64, round int) {
 			cs.Proposal = nil
 			cs.ProposalBlock = nil
 			cs.ProposalBlockParts = nil
+			cs.ProposeRound = 0
 		}
 	}
 	cs.Votes.SetRound(round + 1) // also track next round (round+1) to allow round-skipping
@@ -1192,6 +1193,7 @@ func (cs *ConsensusState) enterPrecommit(height int64, round int) {
 	if !cs.ProposalBlockParts.HasHeader(blockID.PartsHeader) {
 		cs.ProposalBlock = nil
 		cs.ProposalBlockParts = types.NewPartSetFromHeader(blockID.PartsHeader)
+		cs.ProposeRound = blockID.ProposeRound
 	}
 	cs.eventBus.PublishEventUnlock(cs.RoundStateEvent())
 	cs.signAddVote(types.VoteTypePrecommit, nil, types.PartSetHeader{}, 0)
@@ -1509,6 +1511,7 @@ func (cs *ConsensusState) defaultSetProposal(proposal *types.Proposal) error {
 
 	cs.Proposal = proposal
 	cs.ProposalBlockParts = types.NewPartSetFromHeader(proposal.BlockPartsHeader)
+	cs.ProposeRound = proposal.Round
 	cs.Logger.Info("Received proposal", "proposal", proposal)
 	return nil
 }
@@ -1547,7 +1550,7 @@ func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2p
 		if err != nil {
 			return true, err
 		}
-		if cs.Proposal != nil && cs.Proposal.Round == 0 && cs.ProposalBlock.ProposeRound != 0 {
+		if cs.ProposalBlock.ProposeRound != cs.ProposeRound {
 			cs.Logger.Error("Received block which has unmatched round with proposal , bad peer?", "height", height, "round", round, "roundInProposal", cs.Proposal.Round, "roundInBlock", cs.ProposalBlock.ProposeRound, "peer", peerID)
 			cs.Proposal = nil	//unmatched proposal and block means both are invalid
 			cs.ProposalBlock = nil		//so both reset to nil
