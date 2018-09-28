@@ -906,6 +906,9 @@ func (cs *ConsensusState) defaultDecideProposal(height int64, round int) {
 	if cs.LockedBlock != nil {
 		// If we're locked onto a block, just choose that.
 		block, blockParts = cs.LockedBlock, cs.LockedBlockParts
+	} else if cs.ProposalBlock != nil {
+		// If there is valid block, choose that.
+		block, blockParts = cs.ProposalBlock, cs.ProposalBlockParts
 	} else if cs.ValidBlock != nil {
 		// If there is valid block, choose that.
 		block, blockParts = cs.ValidBlock, cs.ValidBlockParts
@@ -1536,7 +1539,7 @@ func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2p
 			&cs.ProposalBlock,
 			int64(cs.state.ConsensusParams.BlockSize.MaxBytes),
 		)
-		if err != nil || cs.ProposalBlock == nil {
+		if err != nil {
 			return true, err
 		}
 		/*if cs.ProposalBlock.ProposeRound != cs.Proposal.Round { //we may don't have the proposal new, can cause nil pointer
@@ -1719,6 +1722,10 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 			} else {
 				cs.enterPrevote(height, vote.Round) // if the vote is ahead of us
 				cs.enterPrevoteWait(height, vote.Round)
+			}
+		} else if blockID, ok := prevotes.TwoThirdsMajority(); ok {
+			if len(blockID.Hash) != 0 && blockID.ProposeRound == 0 {
+				cs.enterCommit(height, vote.Round)
 			}
 		} else if cs.Proposal != nil && 0 <= cs.Proposal.POLRound && cs.Proposal.POLRound == vote.Round {
 			// If the proposal is now complete, enter prevote of cs.Round.

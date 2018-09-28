@@ -162,12 +162,13 @@ func TestBlockString(t *testing.T) {
 
 func makeBlockIDRandom() BlockID {
 	blockHash, blockPartsHeader := crypto.CRandBytes(tmhash.Size), PartSetHeader{123, crypto.CRandBytes(tmhash.Size)}
-	return BlockID{blockHash, blockPartsHeader}
+	return BlockID{blockHash, 0,blockPartsHeader}
 }
 
 func makeBlockID(hash []byte, partSetSize int, partSetHash []byte) BlockID {
 	return BlockID{
 		Hash: hash,
+		ProposeRound: 0,
 		PartsHeader: PartSetHeader{
 			Total: partSetSize,
 			Hash:  partSetHash,
