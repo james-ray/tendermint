@@ -1568,6 +1568,7 @@ func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2p
 			cs.Proposal = nil      //unmatched proposal and block means both are invalid
 			cs.ProposalBlock = nil //so both reset to nil
 			cs.ProposalBlockParts = nil
+			cs.LockedBlockID = nil
 			return false, nil
 		}
 		// NOTE: it's possible to receive complete proposal blocks for future rounds without having the proposal

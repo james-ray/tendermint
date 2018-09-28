@@ -966,15 +966,15 @@ func (ps *PeerState) SetHasProposal(proposal *types.Proposal) {
 	}
 	if ps.PRS.Proposal {
 		if proposal.Round == 0 {
-			if ps.PRS.Round0Proposal{
+			if ps.PRS.Round0Proposal {
 				return
-			}else{
+			} else {
 				ps.PRS.Round0Proposal = true
 			}
-		}else{
+		} else {
 			return
 		}
-	}else{
+	} else {
 		ps.PRS.Proposal = true
 	}
 
@@ -1229,17 +1229,15 @@ func (ps *PeerState) ApplyNewRoundStepMessage(msg *NewRoundStepMessage) {
 	ps.PRS.Round = msg.Round
 	ps.PRS.Step = msg.Step
 	ps.PRS.StartTime = startTime
-	if psHeight != msg.Height || psRound != msg.Round {
-		if !ps.PRS.Round0Proposal{ //if peer has round0 proposal, keep the status
-			ps.PRS.Proposal = false
-			ps.PRS.ProposalBlockPartsHeader = types.PartSetHeader{}
-			ps.PRS.ProposalBlockParts = nil
-			ps.PRS.ProposalPOLRound = -1
-			ps.PRS.ProposalPOL = nil
-			// We'll update the BitArray capacity later.
-			ps.PRS.Prevotes = nil
-			ps.PRS.Precommits = nil
-		}
+	if psHeight != msg.Height || psRound != msg.Round && !ps.PRS.Round0Proposal { //if peer has round0 proposal, keep the status
+		ps.PRS.Proposal = false
+		ps.PRS.ProposalBlockPartsHeader = types.PartSetHeader{}
+		ps.PRS.ProposalBlockParts = nil
+		ps.PRS.ProposalPOLRound = -1
+		ps.PRS.ProposalPOL = nil
+		// We'll update the BitArray capacity later.
+		ps.PRS.Prevotes = nil
+		ps.PRS.Precommits = nil
 	}
 	if psHeight == msg.Height && psRound != msg.Round && msg.Round == psCatchupCommitRound {
 		// Peer caught up to CatchupCommitRound.
