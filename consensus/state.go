@@ -782,8 +782,8 @@ func (cs *ConsensusState) enterNewRound(height int64, round int) {
 		// for round 0.
 		cs.Validators.GetProposerOfHeight()
 	} else {
-		logger.Info("Resetting Proposal info")
 		if cs.ProposalBlock == nil || cs.Proposal == nil || cs.Proposal.Round != 0 { //retain round 0 proposal
+			logger.Info("Resetting Proposal info")
 			cs.Proposal = nil
 			cs.ProposalBlock = nil
 			cs.ProposalBlockParts = nil
@@ -1717,6 +1717,8 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 						} else {
 							cs.enterPrecommit(height, vote.Round)
 						}
+					}else {
+						cs.enterPrecommit(height, vote.Round)
 					}
 				}
 			} else {
