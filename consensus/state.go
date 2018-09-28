@@ -549,6 +549,7 @@ func (cs *ConsensusState) updateToState(state sm.State) {
 	cs.LockedRound = 0
 	cs.LockedBlock = nil
 	cs.LockedBlockParts = nil
+	cs.LockedBlockID = nil
 	cs.ValidRound = 0
 	cs.ValidBlock = nil
 	cs.ValidBlockParts = nil
@@ -782,13 +783,12 @@ func (cs *ConsensusState) enterNewRound(height int64, round int) {
 		// for round 0.
 		cs.Validators.GetProposerOfHeight()
 	} else {
-		if cs.ProposalBlock == nil || cs.Proposal == nil || cs.Proposal.Round != 0 { //retain round 0 proposal
+		/*if cs.ProposalBlock == nil || cs.Proposal == nil || cs.Proposal.Round != 0 { //retain round 0 proposal
 			logger.Info("Resetting Proposal info")
 			cs.Proposal = nil
 			cs.ProposalBlock = nil
 			cs.ProposalBlockParts = nil
-			cs.ProposeRound = 0
-		}
+		}*/
 	}
 	cs.Votes.SetRound(round + 1) // also track next round (round+1) to allow round-skipping
 
@@ -1178,6 +1178,7 @@ func (cs *ConsensusState) enterPrecommit(height int64, round int) {
 		cs.LockedRound = round
 		cs.LockedBlock = cs.ProposalBlock
 		cs.LockedBlockParts = cs.ProposalBlockParts
+		cs.LockedBlockID = &types.BlockID{blockID.Hash, blockID.ProposeRound, blockID.PartsHeader}
 		cs.eventBus.PublishEventLock(cs.RoundStateEvent())
 		cs.signAddVote(types.VoteTypePrecommit, blockID.Hash, blockID.PartsHeader, blockID.ProposeRound)
 		return
@@ -1193,7 +1194,7 @@ func (cs *ConsensusState) enterPrecommit(height int64, round int) {
 	if !cs.ProposalBlockParts.HasHeader(blockID.PartsHeader) {
 		cs.ProposalBlock = nil
 		cs.ProposalBlockParts = types.NewPartSetFromHeader(blockID.PartsHeader)
-		cs.ProposeRound = blockID.ProposeRound
+		cs.LockedBlockID = &types.BlockID{blockID.Hash, blockID.ProposeRound, blockID.PartsHeader}
 	}
 	cs.eventBus.PublishEventUnlock(cs.RoundStateEvent())
 	cs.signAddVote(types.VoteTypePrecommit, nil, types.PartSetHeader{}, 0)
@@ -1465,16 +1466,23 @@ func (cs *ConsensusState) recordMetrics(height int64, block *types.Block) {
 //-----------------------------------------------------------------------------
 
 func (cs *ConsensusState) defaultSetProposal(proposal *types.Proposal) error {
+	if cs.LockedBlock != nil {
+		//It's safe to override cs.ProposalBlock when cs.LockedBlock!=nil , because eventually we will commit LockedBlock
+		//But no need to do this. It's better update the proposalBlock through the enterPrecommit justification.
+		return nil
+	}
 	// Already have one
 	// TODO: possibly catch double proposals
 	if cs.Proposal != nil {
-		if cs.Proposal.Round == 0 { //already received highest priority proposal
-			return nil
-		}
 		if proposal.Round != 0 {
-			return nil
+			if cs.Proposal.Round >= proposal.Round { //already received higher priority proposal
+				return nil
+			}
+		} else {
+			if cs.Proposal.Round == 0 { //already received round 0 proposal(highest priority)
+				return nil
+			}
 		}
-		return nil
 	}
 
 	// Does not apply
@@ -1511,7 +1519,6 @@ func (cs *ConsensusState) defaultSetProposal(proposal *types.Proposal) error {
 
 	cs.Proposal = proposal
 	cs.ProposalBlockParts = types.NewPartSetFromHeader(proposal.BlockPartsHeader)
-	cs.ProposeRound = proposal.Round
 	cs.Logger.Info("Received proposal", "proposal", proposal)
 	return nil
 }
@@ -1535,6 +1542,11 @@ func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2p
 			"height", height, "round", round, "index", part.Index, "peer", peerID)
 		return false, nil
 	}
+	if cs.LockedBlockID == nil && cs.Proposal == nil {
+		cs.Logger.Info("cs.LockedBlockID == nil && cs.Proposal == nil should not both occur, how does ProposalBlockParts be assigned?",
+			"height", height, "round", round, "index", part.Index, "peer", peerID)
+		return false, nil
+	}
 
 	added, err = cs.ProposalBlockParts.AddPart(part)
 	if err != nil {
@@ -1550,10 +1562,11 @@ func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2p
 		if err != nil {
 			return true, err
 		}
-		if cs.ProposalBlock.ProposeRound != cs.ProposeRound {
+		if cs.LockedBlockID != nil && cs.ProposalBlock.ProposeRound != cs.LockedBlockID.ProposeRound ||
+			cs.LockedBlockID == nil && cs.Proposal != nil && cs.ProposalBlock.ProposeRound != cs.Proposal.Round {
 			cs.Logger.Error("Received block which has unmatched round with proposal , bad peer?", "height", height, "round", round, "roundInProposal", cs.Proposal.Round, "roundInBlock", cs.ProposalBlock.ProposeRound, "peer", peerID)
-			cs.Proposal = nil	//unmatched proposal and block means both are invalid
-			cs.ProposalBlock = nil		//so both reset to nil
+			cs.Proposal = nil      //unmatched proposal and block means both are invalid
+			cs.ProposalBlock = nil //so both reset to nil
 			cs.ProposalBlockParts = nil
 			return false, nil
 		}
