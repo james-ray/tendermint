@@ -382,7 +382,9 @@ func (voteSet *VoteSet) IsCommit() bool {
 		return false
 	}
 	if voteSet.type_ != VoteTypePrecommit {
-		return false
+		if voteSet.maj23 == nil || voteSet.maj23.ProposeRound != 0 {
+			return false
+		}
 	}
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
@@ -529,9 +531,9 @@ func (voteSet *VoteSet) sumTotalFrac() (int64, int64, float64) {
 // Commit
 
 func (voteSet *VoteSet) MakeCommit() *Commit {
-/*	if voteSet.type_ != VoteTypePrecommit {
-		cmn.PanicSanity("Cannot MakeCommit() unless VoteSet.Type is VoteTypePrecommit")
-	}*/
+	/*	if voteSet.type_ != VoteTypePrecommit {
+			cmn.PanicSanity("Cannot MakeCommit() unless VoteSet.Type is VoteTypePrecommit")
+		}*/
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
 

@@ -961,7 +961,7 @@ func (ps *PeerState) SetHasProposal(proposal *types.Proposal) {
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
 
-	if (ps.PRS.Height != proposal.Height || ps.PRS.Round != proposal.Round) && proposal.Round != 0 {
+	if ps.PRS.Height != proposal.Height || ps.PRS.Round != proposal.Round && proposal.Round != 0 {
 		return
 	}
 	if ps.PRS.Proposal {
@@ -976,6 +976,9 @@ func (ps *PeerState) SetHasProposal(proposal *types.Proposal) {
 		}
 	} else {
 		ps.PRS.Proposal = true
+		if proposal.Round == 0 {
+			ps.PRS.Round0Proposal = true
+		}
 	}
 
 	ps.PRS.ProposalBlockPartsHeader = proposal.BlockPartsHeader
@@ -1229,14 +1232,16 @@ func (ps *PeerState) ApplyNewRoundStepMessage(msg *NewRoundStepMessage) {
 	ps.PRS.Round = msg.Round
 	ps.PRS.Step = msg.Step
 	ps.PRS.StartTime = startTime
-	if psHeight != msg.Height || psRound != msg.Round { //if peer has round0 proposal, keep the status
-		if !ps.PRS.Round0Proposal{
-			ps.PRS.Proposal = false
-			ps.PRS.ProposalBlockPartsHeader = types.PartSetHeader{}
-			ps.PRS.ProposalBlockParts = nil
-			ps.PRS.ProposalPOLRound = -1
-			ps.PRS.ProposalPOL = nil
-		}
+	//if peer has round0 proposal, keep the status
+	if psHeight != msg.Height || psRound != msg.Round && !ps.PRS.Round0Proposal {
+		ps.PRS.Proposal = false
+		ps.PRS.Round0Proposal = false
+		ps.PRS.ProposalBlockPartsHeader = types.PartSetHeader{}
+		ps.PRS.ProposalBlockParts = nil
+		ps.PRS.ProposalPOLRound = -1
+		ps.PRS.ProposalPOL = nil
+	}
+	if psHeight != msg.Height || psRound != msg.Round {
 		// We'll update the BitArray capacity later.
 		ps.PRS.Prevotes = nil
 		ps.PRS.Precommits = nil
