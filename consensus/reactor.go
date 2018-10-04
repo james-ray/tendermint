@@ -789,10 +789,17 @@ OUTER_LOOP:
 			prs := ps.GetRoundState()
 			if prs.CatchupCommitRound != -1 && 0 < prs.Height && prs.Height <= conR.conS.blockStore.Height() {
 				commit := conR.conS.LoadCommit(prs.Height)
+				block:=conR.conS.blockStore.LoadBlock(prs.Height)
+				var voteType byte
+				if block.ProposeRound==0 {
+					voteType =  types.VoteTypePrevote
+				}else{
+					voteType =  types.VoteTypePrecommit
+				}
 				peer.TrySend(StateChannel, cdc.MustMarshalBinaryBare(&VoteSetMaj23Message{
 					Height:  prs.Height,
 					Round:   commit.Round(),
-					Type:    types.VoteTypePrecommit,
+					Type:    voteType,
 					BlockID: commit.BlockID,
 				}))
 				time.Sleep(conR.conS.config.PeerQueryMaj23SleepDuration)
