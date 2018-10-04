@@ -382,7 +382,11 @@ func (voteSet *VoteSet) IsCommit() bool {
 		return false
 	}
 	if voteSet.type_ != VoteTypePrecommit {
-		if voteSet.maj23 == nil || voteSet.maj23.ProposeRound != 0 {
+		voteSet.mtx.Lock()
+		defer voteSet.mtx.Unlock()
+		if voteSet.maj23 != nil && voteSet.maj23.ProposeRound == 0 {
+			return true
+		}else {
 			return false
 		}
 	}
