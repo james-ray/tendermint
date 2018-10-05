@@ -518,7 +518,7 @@ OUTER_LOOP:
 		// Now consider sending other things, like the Proposal itself.
 
 		// Send Proposal && ProposalPOL BitArray?
-		if rs.Proposal != nil && ((!prs.Proposal && !prs.Round0Proposal) || (!prs.Round0Proposal && rs.Proposal.Round == 0)) {
+		if rs.Proposal != nil &&  prs.Proposal {
 			// Proposal: share the proposal metadata with peer.
 			{
 				msg := &ProposalMessage{Proposal: rs.Proposal}
@@ -971,25 +971,14 @@ func (ps *PeerState) SetHasProposal(proposal *types.Proposal) {
 		return
 	}
 	if ps.PRS.Proposal {
-		if proposal.Round == 0 {
-			if ps.PRS.Round0Proposal {
-				return
-			} else {
-				ps.PRS.Round0Proposal = true
-			}
-		} else {
 			return
-		}
 	} else {
 		ps.PRS.Proposal = true
-		if proposal.Round == 0 {
-			ps.PRS.Round0Proposal = true
-		}
 	}
 
 	ps.PRS.ProposalBlockPartsHeader = proposal.BlockPartsHeader
 	ps.PRS.ProposalBlockParts = cmn.NewBitArray(proposal.BlockPartsHeader.Total)
-	ps.PRS.ProposalPOLRound = proposal.POLRound
+	ps.PRS.ProposalPOLRound = proposal.POLRound  //what if malicious node sends a false POLRound?
 	ps.PRS.ProposalPOL = nil // Nil until ProposalPOLMessage received.
 }
 
@@ -1076,9 +1065,9 @@ func (ps *PeerState) getVoteBitArray(height int64, round int, type_ byte) *cmn.B
 		if ps.PRS.CatchupCommitRound == round {
 			switch type_ {
 			case types.VoteTypePrevote:
-				return nil
+				return ps.PRS.CatchupPrevotes
 			case types.VoteTypePrecommit:
-				return ps.PRS.CatchupCommit
+				return ps.PRS.CatchupPrecommits
 			}
 		}
 		if ps.PRS.ProposalPOLRound == round {
@@ -1122,13 +1111,11 @@ func (ps *PeerState) ensureCatchupCommitRound(height int64, round int, numValida
 	}
 	ps.PRS.CatchupCommitRound = round
 	if round == ps.PRS.Round {
-		if ps.PRS.Round0Proposal{
-			ps.PRS.CatchupCommit = ps.PRS.Prevotes
-		}else{
-			ps.PRS.CatchupCommit = ps.PRS.Precommits
-		}
+		ps.PRS.CatchupPrevotes = ps.PRS.Prevotes
+		ps.PRS.CatchupPrecommits = ps.PRS.Precommits
 	} else {
-		ps.PRS.CatchupCommit = cmn.NewBitArray(numValidators)
+		ps.PRS.CatchupPrevotes = cmn.NewBitArray(numValidators)
+		ps.PRS.CatchupPrecommits = cmn.NewBitArray(numValidators)
 	}
 }
 
@@ -1150,8 +1137,11 @@ func (ps *PeerState) ensureVoteBitArrays(height int64, numValidators int) {
 		if ps.PRS.Precommits == nil {
 			ps.PRS.Precommits = cmn.NewBitArray(numValidators)
 		}
-		if ps.PRS.CatchupCommit == nil {
-			ps.PRS.CatchupCommit = cmn.NewBitArray(numValidators)
+		if ps.PRS.CatchupPrevotes == nil {
+			ps.PRS.CatchupPrevotes = cmn.NewBitArray(numValidators)
+		}
+		if ps.PRS.CatchupPrecommits == nil {
+			ps.PRS.CatchupPrecommits = cmn.NewBitArray(numValidators)
 		}
 		if ps.PRS.ProposalPOL == nil {
 			ps.PRS.ProposalPOL = cmn.NewBitArray(numValidators)
@@ -1235,7 +1225,8 @@ func (ps *PeerState) ApplyNewRoundStepMessage(msg *NewRoundStepMessage) {
 	psRound := ps.PRS.Round
 	//psStep := ps.PRS.Step
 	psCatchupCommitRound := ps.PRS.CatchupCommitRound
-	psCatchupCommit := ps.PRS.CatchupCommit
+	psCatchupPrevotes := ps.PRS.CatchupPrevotes
+	psCatchupPrecommits := ps.PRS.CatchupPrecommits
 
 	startTime := tmtime.Now().Add(-1 * time.Duration(msg.SecondsSinceStartTime) * time.Second)
 	ps.PRS.Height = msg.Height
@@ -1243,15 +1234,12 @@ func (ps *PeerState) ApplyNewRoundStepMessage(msg *NewRoundStepMessage) {
 	ps.PRS.Step = msg.Step
 	ps.PRS.StartTime = startTime
 	//if peer has round0 proposal, keep the status
-	if psHeight != msg.Height || psRound != msg.Round && !ps.PRS.Round0Proposal {
+	if psHeight != msg.Height || psRound != msg.Round {
 		ps.PRS.Proposal = false
-		ps.PRS.Round0Proposal = false
 		ps.PRS.ProposalBlockPartsHeader = types.PartSetHeader{}
 		ps.PRS.ProposalBlockParts = nil
 		ps.PRS.ProposalPOLRound = -1
 		ps.PRS.ProposalPOL = nil
-	}
-	if psHeight != msg.Height || psRound != msg.Round {
 		// We'll update the BitArray capacity later.
 		ps.PRS.Prevotes = nil
 		ps.PRS.Precommits = nil
@@ -1261,11 +1249,8 @@ func (ps *PeerState) ApplyNewRoundStepMessage(msg *NewRoundStepMessage) {
 		// Preserve psCatchupCommit!
 		// NOTE: We prefer to use prs.Precommits if
 		// pr.Round matches pr.CatchupCommitRound.
-		if ps.PRS.Round0Proposal{
-			ps.PRS.Prevotes = psCatchupCommit
-		}else{
-			ps.PRS.Precommits = psCatchupCommit
-		}
+		ps.PRS.Prevotes = psCatchupPrevotes
+		ps.PRS.Precommits = psCatchupPrecommits
 	}
 	if psHeight != msg.Height {
 		// Shift Precommits to LastCommit.
@@ -1278,7 +1263,8 @@ func (ps *PeerState) ApplyNewRoundStepMessage(msg *NewRoundStepMessage) {
 		}
 		// We'll update the BitArray capacity later.
 		ps.PRS.CatchupCommitRound = -1
-		ps.PRS.CatchupCommit = nil
+		ps.PRS.CatchupPrevotes = nil
+		ps.PRS.CatchupPrecommits = nil
 	}
 }
 
