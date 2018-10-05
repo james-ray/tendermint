@@ -518,7 +518,7 @@ OUTER_LOOP:
 		// Now consider sending other things, like the Proposal itself.
 
 		// Send Proposal && ProposalPOL BitArray?
-		if rs.Proposal != nil &&  prs.Proposal {
+		if rs.Proposal != nil && !prs.Proposal {
 			// Proposal: share the proposal metadata with peer.
 			{
 				msg := &ProposalMessage{Proposal: rs.Proposal}
@@ -971,15 +971,15 @@ func (ps *PeerState) SetHasProposal(proposal *types.Proposal) {
 		return
 	}
 	if ps.PRS.Proposal {
-			return
+		return
 	} else {
 		ps.PRS.Proposal = true
 	}
 
 	ps.PRS.ProposalBlockPartsHeader = proposal.BlockPartsHeader
 	ps.PRS.ProposalBlockParts = cmn.NewBitArray(proposal.BlockPartsHeader.Total)
-	ps.PRS.ProposalPOLRound = proposal.POLRound  //what if malicious node sends a false POLRound?
-	ps.PRS.ProposalPOL = nil // Nil until ProposalPOLMessage received.
+	ps.PRS.ProposalPOLRound = proposal.POLRound //what if malicious node sends a false POLRound?
+	ps.PRS.ProposalPOL = nil                    // Nil until ProposalPOLMessage received.
 }
 
 // InitProposalBlockParts initializes the peer's proposal block parts header and bit array.
