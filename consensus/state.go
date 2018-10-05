@@ -1704,6 +1704,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 				cs.LockedRound = 0
 				cs.LockedBlock = nil
 				cs.LockedBlockParts = nil
+				cs.LockedBlockID = nil
 				cs.eventBus.PublishEventUnlock(cs.RoundStateEvent())
 			}
 
