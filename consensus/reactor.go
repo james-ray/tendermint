@@ -967,7 +967,7 @@ func (ps *PeerState) SetHasProposal(proposal *types.Proposal) {
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
 
-	if ps.PRS.Height != proposal.Height || ps.PRS.Round != proposal.Round && proposal.Round != 0 {
+	if ps.PRS.Height != proposal.Height || ps.PRS.Round != proposal.Round {
 		return
 	}
 	if ps.PRS.Proposal {
