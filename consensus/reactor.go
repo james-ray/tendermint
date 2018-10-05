@@ -1122,7 +1122,11 @@ func (ps *PeerState) ensureCatchupCommitRound(height int64, round int, numValida
 	}
 	ps.PRS.CatchupCommitRound = round
 	if round == ps.PRS.Round {
-		ps.PRS.CatchupCommit = ps.PRS.Precommits
+		if ps.PRS.Round0Proposal{
+			ps.PRS.CatchupCommit = ps.PRS.Prevotes
+		}else{
+			ps.PRS.CatchupCommit = ps.PRS.Precommits
+		}
 	} else {
 		ps.PRS.CatchupCommit = cmn.NewBitArray(numValidators)
 	}
@@ -1257,7 +1261,11 @@ func (ps *PeerState) ApplyNewRoundStepMessage(msg *NewRoundStepMessage) {
 		// Preserve psCatchupCommit!
 		// NOTE: We prefer to use prs.Precommits if
 		// pr.Round matches pr.CatchupCommitRound.
-		ps.PRS.Precommits = psCatchupCommit
+		if ps.PRS.Round0Proposal{
+			ps.PRS.Prevotes = psCatchupCommit
+		}else{
+			ps.PRS.Precommits = psCatchupCommit
+		}
 	}
 	if psHeight != msg.Height {
 		// Shift Precommits to LastCommit.
