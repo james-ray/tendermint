@@ -25,7 +25,8 @@ type PeerRoundState struct {
 	Prevotes                 *cmn.BitArray       `json:"prevotes"`                    // All votes peer has for this round
 	Precommits               *cmn.BitArray       `json:"precommits"`                  // All precommits peer has for this round
 	LastCommitRound          int                 `json:"last_commit_round"`           // Round of commit for last height. -1 if none.
-	LastCommit               *cmn.BitArray       `json:"last_commit"`                 // All commit precommits of commit for last height.
+	LastPrevotes             *cmn.BitArray       `json:"last_prevotes"`               // All commit precommits of commit for last height.
+	LastPrecommits           *cmn.BitArray       `json:"last_precommits"`             // All commit precommits of commit for last height.
 	CatchupCommitRound       int                 `json:"catchup_commit_round"`        // Round that we have commit for. Not necessarily unique. -1 if none.
 	CatchupPrevotes          *cmn.BitArray       `json:"catchup_prevotes"`            // All commit prevotess peer has for this height & CatchupCommitRound
 	CatchupPrecommits        *cmn.BitArray       `json:"catchup_precommits"`          // All commit precommits peer has for this height & CatchupCommitRound
@@ -44,7 +45,7 @@ func (prs PeerRoundState) StringIndented(indent string) string {
 %s  POL      %v (round %v)
 %s  Prevotes   %v
 %s  Precommits %v
-%s  LastCommit %v (round %v)
+%s  LastCommit Prevotes %v Precommits %v (round %v)
 %s  Catchup    Prevotes %v Precommits %v (round %v)
 %s}`,
 		indent, prs.Height, prs.Round, prs.Step, prs.StartTime,
@@ -52,7 +53,7 @@ func (prs PeerRoundState) StringIndented(indent string) string {
 		indent, prs.ProposalPOL, prs.ProposalPOLRound,
 		indent, prs.Prevotes,
 		indent, prs.Precommits,
-		indent, prs.LastCommit, prs.LastCommitRound,
-		indent, prs.CatchupPrevotes,prs.Precommits, prs.CatchupCommitRound,
+		indent, prs.LastPrevotes, prs.LastPrecommits,prs.LastCommitRound,
+		indent, prs.CatchupPrevotes, prs.CatchupPrecommits, prs.CatchupCommitRound,
 		indent)
 }

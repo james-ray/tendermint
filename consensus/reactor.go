@@ -1084,9 +1084,9 @@ func (ps *PeerState) getVoteBitArray(height int64, round int, type_ byte) *cmn.B
 		if ps.PRS.LastCommitRound == round {
 			switch type_ {
 			case types.VoteTypePrevote:
-				return nil
+				return ps.PRS.LastPrevotes
 			case types.VoteTypePrecommit:
-				return ps.PRS.LastCommit
+				return ps.PRS.LastPrecommits
 			}
 		}
 		return nil
@@ -1147,8 +1147,11 @@ func (ps *PeerState) ensureVoteBitArrays(height int64, numValidators int) {
 			ps.PRS.ProposalPOL = cmn.NewBitArray(numValidators)
 		}
 	} else if ps.PRS.Height == height+1 {
-		if ps.PRS.LastCommit == nil {
-			ps.PRS.LastCommit = cmn.NewBitArray(numValidators)
+		if ps.PRS.LastPrevotes == nil {
+			ps.PRS.LastPrevotes = cmn.NewBitArray(numValidators)
+		}
+		if ps.PRS.LastPrecommits == nil {
+			ps.PRS.LastPrecommits = cmn.NewBitArray(numValidators)
 		}
 	}
 }
@@ -1256,10 +1259,12 @@ func (ps *PeerState) ApplyNewRoundStepMessage(msg *NewRoundStepMessage) {
 		// Shift Precommits to LastCommit.
 		if psHeight+1 == msg.Height && psRound == msg.LastCommitRound {
 			ps.PRS.LastCommitRound = msg.LastCommitRound
-			ps.PRS.LastCommit = ps.PRS.Precommits
+			ps.PRS.LastPrevotes = ps.PRS.Prevotes
+			ps.PRS.LastPrecommits = ps.PRS.Precommits
 		} else {
 			ps.PRS.LastCommitRound = msg.LastCommitRound
-			ps.PRS.LastCommit = nil
+			ps.PRS.LastPrevotes = nil
+			ps.PRS.LastPrecommits = nil
 		}
 		// We'll update the BitArray capacity later.
 		ps.PRS.CatchupCommitRound = -1

@@ -1562,7 +1562,7 @@ func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2p
 		if err != nil {
 			return true, err
 		}
-/*		if cs.LockedBlockID != nil && cs.ProposalBlock.ProposeRound != cs.LockedBlockID.ProposeRound ||
+		if cs.LockedBlockID != nil && cs.ProposalBlock.ProposeRound != cs.LockedBlockID.ProposeRound ||
 			cs.LockedBlockID == nil && cs.Proposal != nil && cs.ProposalBlock.ProposeRound != cs.Proposal.Round {
 			cs.Logger.Error("Received block which has unmatched round with proposal , bad peer?", "height", height, "round", round, "roundInProposal", cs.Proposal.Round, "roundInBlock", cs.ProposalBlock.ProposeRound, "peer", peerID)
 			cs.Proposal = nil      //unmatched proposal and block means both are invalid
@@ -1570,7 +1570,7 @@ func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2p
 			cs.ProposalBlockParts = nil
 			cs.LockedBlockID = nil
 			return false, nil
-		}*/
+		}
 		// NOTE: it's possible to receive complete proposal blocks for future rounds without having the proposal
 		cs.Logger.Info("Received complete proposal block", "height", cs.ProposalBlock.Height, "hash", cs.ProposalBlock.Hash())
 
@@ -1705,6 +1705,11 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 				cs.LockedBlock = nil
 				cs.LockedBlockParts = nil
 				cs.LockedBlockID = nil
+				if !cs.ProposalBlockParts.HasHeader(blockID.PartsHeader) {
+					cs.ProposalBlock = nil
+					cs.ProposalBlockParts = types.NewPartSetFromHeader(blockID.PartsHeader)
+					cs.LockedBlockID = &types.BlockID{blockID.Hash, blockID.ProposeRound, blockID.PartsHeader}
+				}
 				cs.eventBus.PublishEventUnlock(cs.RoundStateEvent())
 			}
 
