@@ -1466,23 +1466,15 @@ func (cs *ConsensusState) recordMetrics(height int64, block *types.Block) {
 //-----------------------------------------------------------------------------
 
 func (cs *ConsensusState) defaultSetProposal(proposal *types.Proposal) error {
-	if cs.LockedBlock != nil {
+/*	if cs.LockedBlock != nil {
 		//It's safe to override cs.ProposalBlock when cs.LockedBlock!=nil , because eventually we will commit LockedBlock
 		//But no need to do this. It's better update the proposalBlock through the enterPrecommit justification.
 		return nil
-	}
+	}*/
 	// Already have one
 	// TODO: possibly catch double proposals
-	if cs.Proposal != nil {
-		if proposal.Round != 0 {
-			if cs.Proposal.Round >= proposal.Round { //already received higher priority proposal
-				return nil
-			}
-		} else {
-			if cs.Proposal.Round == 0 { //already received round 0 proposal(highest priority)
-				return nil
-			}
-		}
+	if cs.Proposal != nil && cs.Proposal.Round == 0 { //already received round 0 proposal(highest priority)
+		return nil
 	}
 
 	// Does not apply
